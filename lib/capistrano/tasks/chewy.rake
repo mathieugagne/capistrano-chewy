@@ -16,6 +16,10 @@ namespace :deploy do
 end
 
 namespace :chewy do
+  def support_journaling?(chewy_version)
+    Gem::Dependency.new('', '> 0.8.4').match?('', chewy_version)
+  end
+
   def delete_indexes(index_files)
     index_classes = index_files.map { |file| File.basename(file, '.rb').camelize }.uniq
     runner_code = "[#{index_classes.join(', ')}].each(&:delete)"
