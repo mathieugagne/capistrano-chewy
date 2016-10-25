@@ -84,6 +84,7 @@ set :chewy_env, :chewy_production        # Environment variable for Chewy, equal
 set :chewy_role, :web                    # Chewy role, :app by default  
 set :chewy_default_hooks, false          # Add default gem hooks to project deploy flow, true by default
 set :chewy_delete_removed_indexes, false # Delete indexes which files have been deleted, true by default
+set :chewy_apply_journal, true           # Import changes from journal after reset (of any type)
 ```
 
 ## Contributing
