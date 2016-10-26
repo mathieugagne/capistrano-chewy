@@ -17,6 +17,18 @@ namespace :deploy do
 end
 
 namespace :chewy do
+  def capture_runner(ruby_code)
+    within release_path do
+      with rails_env: fetch(:chewy_env) do
+        return capture :rails, "runner \"#{ruby_code}\""
+      end
+    end
+  end
+
+  def journal_exists?
+    capture_runner('puts Chewy::Journal.exists?') == 'true'
+  end
+
   # Chewy supports journaling currently only in master
   def support_journaling?(chewy_version)
     Gem::Dependency.new('', '> 0.8.4').match?('', chewy_version)
@@ -25,18 +37,22 @@ namespace :chewy do
   def apply_journal_changes_from(time_in_seconds)
     raise ArgumentError, 'argument must be an integer!' unless time_in_seconds.is_a?(Integer)
 
-    within release_path do
-      with rails_env: fetch(:chewy_env) do
-        info "Applying journal changes from #{Time.at(time_in_seconds).strftime('%T %D %z')}"
-        execute :rails, "runner 'Chewy::Journal.apply_changes_from(Time.at(#{time_in_seconds})'"
-      end
+    unless support_journaling?
+      warn <<-MSG.strip
+        Your Chewy version doesn't support journaling. Disable :chewy_apply_journal option or update Chewy gem.
+      MSG
+      return
     end
-  end
 
-  def remote_time
+    unless journal_exists?
+      warn "Chewy Journal doesn't exists. Journaling is enabled in the settings?"
+      return
+    end
+
     within release_path do
       with rails_env: fetch(:chewy_env) do
-        return capture :rails, "runner 'Time.now.to_i'"
+        info "Applying journal changes from #{Time.zone.at(time_in_seconds).strftime('%T %D %z')}"
+        execute :rails, "runner 'Chewy::Journal.apply_changes_from(Time.at(#{time_in_seconds})'"
       end
     end
   end
@@ -127,7 +143,7 @@ namespace :chewy do
   desc 'Runs smart Chewy indexes rebuilding (only for changed files)'
   task :rebuilding do
     on roles fetch(:chewy_role) do
-      rebuilding_started_at = remote_time
+      rebuilding_started_at = capture_runner('Time.current.to_i')
 
       chewy_path = fetch(:chewy_path)
       info "Checking changes in #{chewy_path}"
